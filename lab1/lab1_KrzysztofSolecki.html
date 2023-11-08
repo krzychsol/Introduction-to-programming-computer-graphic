@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Homework - LAB1</title>
+    <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1" />
+    <meta
+      name="viewport"
+      content="width=device-width, height=device-height, initial-scale=1"
+    />
+    <style type="text/css">
+      body {
+        background-color: #000;
+        overflow: hidden;
+      }
+    </style>
+    <script src="three.js"></script>
+    <script src="Detector.js"></script>
+  </head>
+
+  <body>
+    <script>
+      // Setup renderer
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+
+      renderer.setSize(window.innerWidth, window.innerHeight);
+
+      document.body.appendChild(renderer.domElement);
+
+      // Create scene
+      const scene = new THREE.Scene();
+
+      // Add camera
+      const camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        700
+      );
+
+      const createTriangle = (material, corners) => {
+        const geometry = new THREE.Geometry();
+        corners.forEach((corner) => geometry.vertices.push(corner));
+        geometry.faces.push(new THREE.Face3(0, 1, 2));
+        return new THREE.Mesh(geometry, material);
+      };
+
+      const createIsoscelesTriangle = (material, width, height) =>
+        createTriangle(material, [
+          new THREE.Vector3(width / 2, 0, 0),
+          new THREE.Vector3(-width / 2, 0, 0),
+          new THREE.Vector3(0, height, 0),
+        ]);
+
+      const createRect = (material, width, height) => {
+        const geometry = new THREE.PlaneGeometry(width, height);
+        return new THREE.Mesh(geometry, material);
+      };
+
+      const createCircle = (material, radius) => {
+        const geometry = new THREE.CircleGeometry(radius, 32);
+        return new THREE.Mesh(geometry, material);
+      };
+
+      const createSquare = (material, size) => createRect(material, size, size);
+
+      const createChristmasTree = (
+        height,
+        width,
+        levels,
+        treeMaterial,
+        trunkMaterial
+      ) => {
+        const group = new THREE.Group();
+        const trunkHeight = 0.1 * height;
+        const threeHeight = height - trunkHeight;
+        let heightDiv = 0;
+        let previousHeight = 0;
+        for (let i = 1; i <= levels; i++) heightDiv += i;
+
+        // Create christmas tree levels
+        for (let i = levels; i > 0; i--) {
+          const triangleWidth = (i / levels) * width;
+          const triangleHeight = (i / heightDiv) * threeHeight;
+          const triangle = createIsoscelesTriangle(
+            treeMaterial,
+            triangleWidth,
+            triangleHeight + (i > 1 ? triangleHeight / threeHeight : 0)
+          );
+          triangle.position.y = previousHeight + trunkHeight;
+          previousHeight += triangleHeight;
+
+          const triangleClone = triangle.clone();
+          triangleClone.rotation.y += 0.5 * Math.PI;
+
+          group.add(triangle);
+          group.add(triangleClone);
+        }
+
+        const square = createSquare(trunkMaterial, trunkHeight);
+        square.position.y = trunkHeight / 2;
+
+        const squareClone = square.clone();
+        squareClone.rotation.y += 0.5 * Math.PI;
+
+        group.add(square);
+        group.add(squareClone);
+
+        return group;
+      };
+
+      const createWindow = (glassMaterial, frameMaterial, size) => {
+        const group = new THREE.Group();
+        const outerFrame = createSquare(frameMaterial, size);
+        outerFrame.position.z += 0.001;
+        const glass = createSquare(glassMaterial, 0.8 * size);
+        glass.position.z += 0.002;
+        group.add(outerFrame, glass);
+        return group;
+      };
+
+      const createChimney = (material, width, height) => {
+        const group = new THREE.Group();
+        const rect = createRect(material, 0.5 * width, height);
+        group.add(rect);
+        return group;
+      };
+
+      const createHouse = (
+        width,
+        height,
+        glassMaterial,
+        wallMaterial,
+        doorMaterial,
+        roofMaterial,
+        chimneyMaterial
+      ) => {
+        const group = new THREE.Group();
+        const chimneyHeight = 0.25 * height;
+        const chimneyWidth = 0.75 * chimneyHeight;
+        const roofHeight = 0.7 * height;
+        const wallHeight = height - 0.1*roofHeight;
+        const wallWidth = 0.9 * width;
+        const doorHeight = 0.5 * wallHeight;
+        const doorWidth = 0.4 * doorHeight;
+        const windowSize = 0.3 * wallHeight;
+
+        const wall = createRect(wallMaterial, wallWidth, wallHeight);
+        wall.position.y += wallHeight / 2;
+        const roof = createIsoscelesTriangle(roofMaterial, width, roofHeight);
+        roof.position.y += wallHeight;
+        const windows = [
+          createWindow(glassMaterial, doorMaterial, windowSize),
+          createWindow(glassMaterial, doorMaterial, windowSize),
+        ];
+        windows.forEach((w) => {
+          w.renderOrder = 1;
+          w.position.z += 0.001;
+        });
+        windows[0].position.set(
+          -wallWidth / 4 - doorWidth / 4,
+          wallHeight / 2,
+          0
+        );
+        windows[1].position.set(
+          wallWidth / 4 + doorWidth / 4,
+          wallHeight / 2,
+          0
+        );
+        const door = createRect(doorMaterial, doorWidth, doorHeight);
+        door.position.y += 0.5 * doorHeight;
+        door.renderOrder = 1;
+        const chimney = createChimney(
+          chimneyMaterial,
+          chimneyWidth,
+          chimneyHeight
+        );
+        chimney.position.y += wallHeight + roofHeight / 2 + chimneyHeight / 2;
+        chimney.position.x += wallWidth / 4;
+        door.position.z += 0.001;
+        chimney.position.z += 0.001;
+
+        group.add(wall, roof, ...windows, door, chimney);
+
+        return group;
+      };
+
+      const createCarWheel = (rubberMaterial, accentMaterial, size) => {
+        const group = new THREE.Group();
+        const tyre = createCircle(rubberMaterial, size / 2);
+        const hubCap = createCircle(accentMaterial, 0.7 * (size / 2));
+        tyre.position.z += 0.001;
+        group.add(tyre);
+    
+        return group;
+      };
+
+      const createCar = (
+        width,
+        height,
+        carPaintMaterial,
+        rubberMaterial,
+        accentMaterial,
+        glassMaterial,
+        lightsMaterial
+      ) => {
+        const group = new THREE.Group();
+        const bodyHeight = 0.45 * height;
+        const wheelSize = bodyHeight;
+        const lightSize = bodyHeight / 4;
+        const windowWidth = width / 4;
+        const windowHeight = height - bodyHeight - 0.25 * wheelSize;
+
+        const body = createRect(carPaintMaterial, width, bodyHeight);
+        body.position.y += bodyHeight;
+        body.renderOrder = -1;
+        const frontWheel = createCarWheel(
+          rubberMaterial,
+          accentMaterial,
+          wheelSize
+        );
+        frontWheel.position.y += wheelSize / 2;
+        const backWheel = frontWheel.clone();
+        frontWheel.position.x -= 0.3 * width;
+        backWheel.position.x += 0.3 * width;
+        group.add(body, frontWheel, backWheel);
+        return group;
+      };
+
+      const rotateYAnimation = (object) => {
+        object.rotation.y += (2 * Math.PI) / 25;
+      };
+
+      const animateCar = (car) => {
+        car.position.x += 0.2;
+        if (car.position.x > 10) car.position.x = -10;
+      };
+
+      /**
+       * Main code
+       */
+      const MATERIALS = {
+        basic: {
+          green: new THREE.MeshBasicMaterial({
+            color: "green",
+            side: THREE.DoubleSide,
+          }),
+          darkGreen: new THREE.MeshBasicMaterial({
+            color: "#00FF00",
+            side: THREE.DoubleSide,
+          }),
+          brown: new THREE.MeshBasicMaterial({
+            color: "#B68D40",
+            side: THREE.DoubleSide,
+          }),
+          blue: new THREE.MeshBasicMaterial({
+            color: "#2E8BC0",
+            side: THREE.DoubleSide,
+          }),
+          beige: new THREE.MeshBasicMaterial({
+            color: "cyan",
+            side: THREE.DoubleSide,
+          }),
+          gray: new THREE.MeshBasicMaterial({
+            color: "#484848",
+            side: THREE.DoubleSide,
+          }),
+          lightGray: new THREE.MeshBasicMaterial({
+            color: "#CAC9C4",
+            side: THREE.DoubleSide,
+          }),
+          white: new THREE.MeshBasicMaterial({
+            color: "#FEFEFE",
+            side: THREE.DoubleSide,
+          }),
+          yellow: new THREE.MeshBasicMaterial({
+            color: "#FFCB00",
+            side: THREE.DoubleSide,
+          }),
+        },
+      };
+
+      camera.position.set(-6, 2, 11);
+      camera.lookAt(scene.position);
+      
+      const christmasTree = createChristmasTree(
+        4,
+        3,
+        3,
+        MATERIALS.basic.green,
+        MATERIALS.basic.brown
+      );
+      christmasTree.position.x = -6;
+
+      const house = createHouse(
+        4,
+        3,
+        MATERIALS.basic.blue,
+        MATERIALS.basic.beige,
+        MATERIALS.basic.brown,
+        MATERIALS.basic.brown,
+        MATERIALS.basic.gray
+      );
+      house.position.x = -1;
+
+      const car = createCar(
+        3,
+        1.75,
+        MATERIALS.basic.white,
+        MATERIALS.basic.gray,
+        MATERIALS.basic.lightGray,
+        MATERIALS.basic.blue,
+        MATERIALS.basic.yellow
+      );
+      car.position.z += 2;
+
+      
+      scene.add(christmasTree);
+      scene.add(house);
+      scene.add(car);
+
+      const renderFrame = () => {
+        rotateYAnimation(christmasTree);
+        animateCar(car);
+        // Render scene and camera
+        renderer.render(scene, camera);
+      };
+
+      renderer.setAnimationLoop(renderFrame);
+    </script>
+  </body>
+</html>
