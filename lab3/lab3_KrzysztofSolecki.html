@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<title>Lab3 - HOMEWORK</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link rel=stylesheet href="css/base.css"/>
+</head>
+<body>
+
+<script src="three.js"></script>
+<script src="ParametricGeometries.js"></script>
+
+<script src="Detector.js"></script>
+<script src="stats.js"></script>
+<script src="OrbitControls.js"></script>
+<script src="THREEx.KeyboardState.js"></script>
+<script src="THREEx.FullScreen.js"></script>
+<script src="THREEx.WindowResize.js"></script>
+
+<!-- jQuery code to display an information button and box when clicked. -->
+<script src="jquery-1.9.1.js"></script>
+<script src="jquery-ui.js"></script>
+<link rel=stylesheet href="jquery-ui.css" />
+<link rel=stylesheet href="info.css"/>
+<script src="info.js"></script>
+<div id="infoButton"></div>
+<div id="infoBox" title="Demo Information">
+This three.js demo is part of a collection at
+<a href="http://stemkoski.github.io/Three.js/">http://stemkoski.github.io/Three.js/</a>
+</div>
+<!-- ------------------------------------------------------------ -->
+
+<div id="ThreeJS" style="position: absolute; left:0px; top:0px"></div>
+<script>
+/*
+	Three.js "tutorials by example"
+	Author: Lee Stemkoski
+	Date: July 2013 (three.js v59dev)
+*/
+
+// MAIN
+
+// standard global variables
+var container, scene, camera, renderer, controls, stats;
+var keyboard = new THREEx.KeyboardState();
+var clock = new THREE.Clock();
+
+// custom global variables
+var mirrorCube, mirrorCubeCamera; // for mirror material
+var mirrorSphere, mirrorSphereCamera; // for mirror material
+var step = 0;
+var torusMesh, sphereMesh, cubeMesh, cubeBumpMesh;
+
+init();
+animate();
+
+// FUNCTIONS 		
+function init() 
+{
+	// SCENE
+	scene = new THREE.Scene();
+	// CAMERA
+	var SCREEN_WIDTH = window.innerWidth, SCREEN_HEIGHT = window.innerHeight;
+	var VIEW_ANGLE = 45, ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT, NEAR = 0.1, FAR = 20000;
+	camera = new THREE.PerspectiveCamera( VIEW_ANGLE, ASPECT, NEAR, FAR);
+	scene.add(camera);
+	camera.position.set(0,150,400);
+	camera.lookAt(scene.position);	
+	// RENDERER
+	if ( Detector.webgl )
+		renderer = new THREE.WebGLRenderer( {antialias:true} );
+	else
+		renderer = new THREE.CanvasRenderer(); 
+	renderer.setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
+	container = document.getElementById( 'ThreeJS' );
+	container.appendChild( renderer.domElement );
+	// EVENTS
+	THREEx.WindowResize(renderer, camera);
+	THREEx.FullScreen.bindKey({ charCode : 'm'.charCodeAt(0) });
+	// CONTROLS
+	controls = new THREE.OrbitControls( camera, renderer.domElement );
+	// STATS
+	stats = new Stats();
+	stats.domElement.style.position = 'absolute';
+	stats.domElement.style.bottom = '0px';
+	stats.domElement.style.zIndex = 100;
+	container.appendChild( stats.domElement );
+	// LIGHT
+	var light = new THREE.PointLight(0xffffff);
+	light.position.set(0,250,0);
+	scene.add(light);
+	// FLOOR
+	var floorTexture = new THREE.TextureLoader().load( 'textures/stone.jpg' );
+	floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping; 
+	floorTexture.repeat.set( 5, 5 );
+	var floorMaterial = new THREE.MeshBasicMaterial( { map: floorTexture, side:THREE.BackSide } );
+	var floorGeometry = new THREE.PlaneGeometry(1000, 1000, 10, 10);
+	var floor = new THREE.Mesh(floorGeometry, floorMaterial);
+	floor.position.y = -0.5;
+	floor.rotation.x = Math.PI / 2;
+	scene.add(floor);
+	
+	// SKYBOX/FOG
+	var materialArray = [];
+	materialArray.push(new THREE.MeshBasicMaterial( { map: THREE.ImageUtils.loadTexture( 'textures/dawnmountain-xpos.png' ) }));
+	materialArray.push(new THREE.MeshBasicMaterial( { map: THREE.ImageUtils.loadTexture( 'textures/dawnmountain-xneg.png' ) }));
+	materialArray.push(new THREE.MeshBasicMaterial( { map: THREE.ImageUtils.loadTexture( 'textures/dawnmountain-ypos.png' ) }));
+	materialArray.push(new THREE.MeshBasicMaterial( { map: THREE.ImageUtils.loadTexture( 'textures/dawnmountain-yneg.png' ) }));
+	materialArray.push(new THREE.MeshBasicMaterial( { map: THREE.ImageUtils.loadTexture( 'textures/dawnmountain-zpos.png' ) }));
+	materialArray.push(new THREE.MeshBasicMaterial( { map: THREE.ImageUtils.loadTexture( 'textures/dawnmountain-zneg.png' ) }));
+	for (var i = 0; i < 6; i++)
+	   materialArray[i].side = THREE.BackSide;
+	var skyboxMaterial = new THREE.MeshFaceMaterial( materialArray );
+	var skyboxGeom = new THREE.BoxGeometry( 5000, 5000, 5000, 64, 64, 64 );
+	var skybox = new THREE.Mesh( skyboxGeom, skyboxMaterial );
+	scene.add( skybox );	
+	
+	////////////
+	// CUSTOM //
+	////////////
+    createTorusPoints();
+    createTorus();
+    createSphere();
+    createCube();
+    createBumpedCube();
+    createMirrorCube();
+    createMirrorSphere();
+
+}
+
+// Function to create points for a torus geometry
+function createTorusPoints() {
+    const points = [];
+    for (let i = 0; i < 10; i++) {
+        points.push(new THREE.Vector2(Math.sin(i * 0.2) * 10 + 5, (i - 5) * 2));
+    }
+    return points;
+}
+
+// Function to create and add a mesh to the scene
+function addMeshToScene(mesh, position) {
+    mesh.position.copy(position);
+    scene.add(mesh);
+}
+
+// Function to create a torus with a texture
+function createTorus() {
+    const torusGeometry = new THREE.TorusGeometry(40, 3, 16, 100);
+    torusMesh = createMesh(torusGeometry, "metal-rust.jpg");
+    addMeshToScene(torusMesh, new THREE.Vector3(-150, 50, 150));
+}
+
+// Function to create a sphere with a texture
+function createSphere() {
+    const sphereGeometry = new THREE.SphereGeometry(50, 50, 65);
+    sphereMesh = createMesh(sphereGeometry, "wood-2.jpg");
+    addMeshToScene(sphereMesh, new THREE.Vector3(250, 90, -200));
+}
+
+// Function to create a cube with a texture
+function createCube() {
+    const cubeGeometry = new THREE.CubeGeometry(50, 50, 50);
+    cubeMesh = createMesh(cubeGeometry, "bathroom.jpg");
+    addMeshToScene(cubeMesh, new THREE.Vector3(100, 50, 150));
+}
+
+// Function to create a bumped cube
+function createBumpedCube() {
+    const bumpedCubeGeometry = new THREE.CylinderGeometry(25, 25, 20, 32);
+    bumpedCubeMesh = createMeshBump(bumpedCubeGeometry, "stone.jpg", "stone-bump.jpg");
+    bumpedCubeMesh.rotation.x = 30;
+    addMeshToScene(bumpedCubeMesh, new THREE.Vector3(0, 50, 150));
+}
+
+// Function to create a mirror cube
+function createMirrorCube() {
+    const cubeGeometry = new THREE.CubeGeometry(200, 200, 30, 50, 50, 50);
+    mirrorCubeCamera = new THREE.CubeCamera(0.1, 5000, 1500);
+    scene.add(mirrorCubeCamera);
+
+    const mirrorCubeMaterial = new THREE.MeshBasicMaterial({ envMap: mirrorCubeCamera.renderTarget });
+    mirrorCube = new THREE.Mesh(cubeGeometry, mirrorCubeMaterial);
+    mirrorCube.position.set(-75, 50, 0);
+    mirrorCube.rotation.y = -15;
+    mirrorCubeCamera.position.copy(mirrorCube.position);
+    scene.add(mirrorCube);
+}
+
+// Function to create a mirror sphere
+function createMirrorSphere() {
+    const sphereGeometry = new THREE.SphereGeometry(50, 32, 16);
+    mirrorSphereCamera = new THREE.CubeCamera(0.1, 5000, 1500);
+    scene.add(mirrorSphereCamera);
+
+    const mirrorSphereMaterial = new THREE.MeshBasicMaterial({ envMap: mirrorSphereCamera.renderTarget });
+    mirrorSphere = new THREE.Mesh(sphereGeometry, mirrorSphereMaterial);
+    mirrorSphere.position.set(75, 50, 0);
+    mirrorSphereCamera.position.copy(mirrorSphere.position);
+    scene.add(mirrorSphere);
+}
+
+function animate() 
+{
+    torusMesh.rotation.y = step += 0.03;
+	torusMesh.rotation.x = step;
+	cubeMesh.rotation.y = step;
+	cubeMesh.rotation.x = step;
+	sphereMesh.rotation.y = step;
+	sphereMesh.rotation.x = step;
+	mirrorCube.rotation.y = step/9;
+	bumpedCubeMesh.rotation.x = step;
+    requestAnimationFrame( animate );
+	render();		
+	update();
+}
+
+function update()
+{
+	if ( keyboard.pressed("z") ) 
+	{ 
+		// do something
+	}
+	
+	controls.update();
+	stats.update();
+}
+
+function render() {
+    updateMirror(mirrorCube, mirrorCubeCamera);
+    updateMirror(mirrorSphere, mirrorSphereCamera);
+    renderer.render(scene, camera);
+}
+
+function updateMirror(mirror, camera) {
+    mirror.visible = false;
+    camera.update(renderer, scene);
+    mirror.visible = true;
+}
+
+function createMesh(geom, imageFile) {
+    const texture = loadTexture("textures/" + imageFile);
+    texture.repeat.set(1, 1);
+    
+    const mat = new THREE.MeshPhongMaterial({ map: texture });
+    return new THREE.Mesh(geom, mat);
+}
+
+function createMeshBump(geom, imageFile, bump) {
+    const texture = loadTexture("textures/" + imageFile);
+    geom.computeVertexNormals();
+    
+    const mat = new THREE.MeshPhongMaterial({ map: texture });
+
+    if (bump) {
+        const bumpTexture = loadTexture("textures/" + bump);
+        mat.bumpMap = bumpTexture;
+        mat.bumpScale = 0.2;
+    }
+
+    return new THREE.Mesh(geom, mat);
+}
+
+function loadTexture(path) {
+    return new THREE.TextureLoader().load(path);
+}
+
+</script>
+
+</body>
+</html>
