@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab5 - Homework</title>
+    <style>
+        @font-face {
+            font-family: 'Robus-BWqOd'; 
+            src: url('https://www.shanebrumback.com/fonts/Robus-BWqOd.otf') format('opentype');
+        }
+
+        body {
+            margin: 0;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #blocker {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        #instructions {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+        }
+
+        #crosshair {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100px;
+            height: 100px;
+            display: none; 
+        }
+
+        #playButton {
+            font-family: 'Robus-BWqOd';
+            font-size: 5vw;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.75);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            white-space: nowrap;
+        }
+
+        p {
+            font-family: Arial;
+            font-size: medium;
+            text-align: center;
+        }
+
+        @media (max-width: 900px) {
+            #playButton {
+                font-family: 'Robus-BWqOd';
+                font-size: 15vw;
+            }
+            p {
+                font-size: 4vw;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <div id="blocker">
+        <div id="instructions">
+            <div id="playButton">
+                Play Now
+                <p>
+                    ESC - Menu
+                    <br />
+                    WSAD ARROWS - Move
+                    <br />
+                    LEFT MOUSE  - Fire
+                    <br />
+                    SPACEBAR  - Fire
+                    <br />
+                    M - Play / Pause Music
+                </p>
+            </div>
+        </div>
+    </div>
+    <img id="crosshair" src="./reticle.png" alt="Crosshair">
+
+    <script src="https://cdn.jsdelivr.net/npm/three@latest/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@latest/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@latest/examples/js/controls/PointerLockControls.js"></script>
+    
+    <script type="module">
+        let colorsArray = [
+    "63b598", "ce7d78", "ea9e70", "a48a9e", "c6e1e8", "648177", "0d5ac1",
+    "f205e6", "1c0365", "14a9ad", "4ca2f9", "a4e43f", "d298e2", "6119d0",
+    "d2737d", "c0a43c", "f2510e", "651be6", "79806e", "61da5e", "cd2f00",
+    "9348af", "01ac53", "c5a4fb", "996635", "b11573", "4bb473", "75d89e",
+    "2f3f94", "2f7b99", "da967d", "34891f", "b0d87b", "ca4751", "7e50a8",
+    "c4d647", "e0eeb8", "11dec1", "289812", "566ca0", "ffdbe1", "2f1179",
+    "935b6d", "916988", "513d98", "aead3a", "9e6d71", "4b5bdc", "0cd36d",
+    "250662", "cb5bea", "228916", "ac3e1b", "df514a", "539397", "880977",
+    "f697c1", "ba96ce", "679c9d", "c6c42c", "5d2c52", "48b41b", "e1cf3b",
+    "5be4f0", "57c4d8", "a4d17a", "225b8", "be608b", "96b00c", "088baf",
+    "f158bf", "e145ba", "ee91e3", "05d371", "5426e0", "4834d0", "802234",
+    "6749e8", "0971f0", "8fb413", "b2b4f0", "c3c89d", "c9a941", "41d158",
+    "fb21a3", "51aed9", "5bb32d", "807fb", "21538e", "89d534", "d36647",
+    "7fb411", "0023b8", "3b8c2a", "986b53", "f50422", "983f7a", "ea24a3",
+    "79352c", "521250", "c79ed2", "d6dd92", "e33e52", "b2be57", "fa06ec",
+    "1bb699", "6b2e5f", "64820f", "1c271", "21538e", "89d534", "d36647",
+    "7fb411", "0023b8", "3b8c2a", "986b53", "f50422", "983f7a", "ea24a3",
+    "79352c", "521250", "c79ed2", "d6dd92", "e33e52", "b2be57", "fa06ec",
+    "1bb699", "6b2e5f", "64820f", "1c271", "9cb64a", "996c48", "9ab9b7",
+    "06e052", "e3a481", "0eb621", "fc458e", "b2db15", "aa226d", "792ed8",
+    "73872a", "520d3a", "cefcb8", "a5b3d9", "7d1d85", "c4fd57", "f1ae16",
+    "8fe22a", "ef6e3c", "243eeb", "1dc18", "dd93fd", "3f8473", "e7dbce",
+    "421f79", "7a3d93", "635f6d", "93f2d7", "9b5c2a", "15b9ee", "0f5997",
+    "409188", "911e20", "1350ce", "10e5b1", "fff4d7", "cb2582", "ce00be",
+    "32d5d6", "17232", "608572", "c79bc2", "00f87c", "77772a", "6995ba",
+    "fc6b57", "f07815", "8fd883", "060e27", "96e591", "21d52e", "d00043",
+    "b47162", "1ec227", "4f0f6f", "1d1d58", "947002", "bde052", "e08c56",
+    "28fcfd", "bb09b", "36486a", "d02e29", "1ae6db", "3e464c", "a84a8f",
+    "911e7e", "3f16d9", "0f525f", "ac7c0a", "b4c086", "c9d730", "30cc49",
+    "3d6751", "fb4c03", "640fc1", "62c03e", "d3493a", "88aa0b", "406df9",
+    "615af0", "4be47", "2a3434", "4a543f", "79bca0", "a8b8d4", "00efd4",
+    "7ad236", "7260d8", "1deaa7", "06f43a", "823c59", "e3d94c", "dc1c06",
+    "f53b2a", "b46238", "2dfff6", "a82b89", "1a8011", "436a9f", "1a806a",
+    "4cf09d", "c188a2", "67eb4b", "b308d3", "fc7e41", "af3101", "ff065",
+    "71b1f4", "a2f8a5", "e23dd0", "d3486d", "00f7f9", "474893", "3cec35",
+    "1c65cb", "5d1d0c", "2d7d2a", "ff3420", "5cdd87", "a259a4", "e4ac44",
+    "1bede6", "8798a4", "d7790f", "b2c24f", "de73c2", "d70a9c", "25b67",
+    "88e9b8", "c2b0e2", "86e98f", "ae90e2", "1a806b", "436a9e", "0ec0ff",
+    "f812b3", "b17fc9", "8d6c2f", "d3277a", "2ca1ae", "9685eb", "8a96c6",
+    "dba2e6", "76fc1b", "608fa4", "20f6ba", "07d7f6", "dce77a", "77ecca"]
+
+        // Set up the scene
+        var scene = new THREE.Scene();
+        scene.fog = new THREE.Fog( 0xffffff, 0, 750 );
+        var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(9, 0.3, 3); // Set camera position 0.1 units above the grid
+
+        // Create the renderer
+        var renderer = new THREE.WebGLRenderer({ alpha: true, depth: true });
+        // Configure renderer settings
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.toneMapping = THREE.ReinhardToneMapping;
+        renderer.setClearColor(0x000000, 1); // Set background color to black
+        renderer.domElement.style.position = 'fixed';
+        renderer.domElement.id = 'renderer';
+        renderer.domElement.style.zIndex = '-1';
+        renderer.domElement.style.left = '0';
+        renderer.domElement.style.top = '0';
+        document.body.appendChild(renderer.domElement);
+
+        var raycaster = new THREE.Raycaster();
+        var mouse = new THREE.Vector2();
+        var particles = [];
+        var triangles = [];
+        let cubes = []
+
+        var hasCubeMoved = false; // Flag to track if the cube has already been moved
+
+        // Gravity effect variables
+        var gravity = new THREE.Vector3(0, -0.01, 0); // Adjust the gravity strength as needed
+        var maxGravityDistance = 2; // Adjust the maximum distance affected by gravity as needed
+
+        // Add PointerLockControls
+        var controls = new THREE.PointerLockControls(camera, document.body);
+
+        // Create a grid
+        var gridHelper = new THREE.GridHelper(20, 20);
+
+        // Set the color of the grid lines to white
+        gridHelper.material.color.set(0xffffff);
+
+        scene.add(gridHelper);
+        
+        	
+
+        // Create a plane geometry with the same size as the grid
+        var planeGeometry = new THREE.PlaneGeometry(20, 20);
+
+        // Create a blue material
+        var blueMaterial = new THREE.MeshBasicMaterial({
+            color: 0x0000ff,
+            side: THREE.DoubleSide
+        });
+
+        // Create a plane mesh with the geometry and material
+        var planeMesh = new THREE.Mesh(planeGeometry, blueMaterial);
+        // Rotate the grid by 90 degrees
+        planeMesh.rotation.x = Math.PI / 2;
+        // Set the position of the plane to align with the grid
+        planeMesh.position.copy(gridHelper.position);
+        //scene.add(planeMesh);
+
+
+        // Create a cube
+        var geometry = new THREE.BoxGeometry(1, 1, 1);
+        var colour = new THREE.Color();
+
+        setInterval(function() {
+            // Update the color of every element
+            colour.setHex(`0x${colorsArray[Math.floor(Math.random() * colorsArray.length)]}`);
+          }, 3000); // Execute every 3000 milliseconds (3 seconds)
+        
+        var material = new THREE.MeshBasicMaterial({ color: colour });
+
+        for (var i = 0; i < 5; i++) {
+            var cube = new THREE.Mesh(geometry, material);
+            cube.position.set(0, 0.5, 0); // Set cube position 0.5 units above the grid
+            scene.add(cube);
+            cubes.push(cube);
+        }
+        
+        var maskTexture = new THREE.TextureLoader().load("./pngfind.com-black-ops-3-gun-1246370.png");
+        var maskGeometry = new THREE.PlaneGeometry(0.9, 0.9);
+        var maskMaterial = new THREE.MeshBasicMaterial({map:
+       maskTexture, transparent: true});
+        var mask = new THREE.Mesh(maskGeometry, maskMaterial);
+       mask.position.x = 1.1;
+       mask.position.y = -0.6;
+       mask.position.z = -1.3;
+       //scene.add(myBox);
+       camera.add(mask);
+
+        // Set camera to face cube position
+        camera.lookAt(cube.position)
+
+        // Set up pointer lock controls
+        var blocker = document.getElementById('blocker');
+        var instructions = document.getElementById('instructions');
+        var playButton = document.getElementById('playButton');
+
+        playButton.addEventListener('click', function () {
+            controls.lock();
+        });
+
+        controls.addEventListener('lock', function () {
+            instructions.style.display = 'none';
+            blocker.style.display = 'none';
+            document.getElementById('crosshair').style.display = 'block'; // Show the crosshair when screen is locked
+        });
+
+        controls.addEventListener('unlock', function () {
+            blocker.style.display = 'block';
+            instructions.style.display = '';
+            document.getElementById('crosshair').style.display = 'none'; // Hide the crosshair when screen is unlocked
+        });
+
+        scene.add(controls.getObject());
+
+        // Keyboard controls
+        var moveForward = false;
+        var moveBackward = false;
+        var moveLeft = false;
+        var moveRight = false;
+
+        var onKeyDown = function (event) {
+            switch (event.keyCode) {
+                case 38: // up arrow
+                case 87: // W key
+                    moveForward = true;
+                    break;
+                case 37: // left arrow
+                case 65: // A key
+                    moveLeft = true;
+                    break;
+                case 40: // down arrow
+                case 83: // S key
+                    moveBackward = true;
+                    break;
+                case 39: // right arrow
+                case 68: // D key
+                    moveRight = true;
+                    break;
+            }
+        };
+
+        var onKeyUp = function (event) {
+            switch (event.keyCode) {
+                case 38: // up arrow
+                case 87: // W key
+                    moveForward = false;
+                    break;
+                case 37: // left arrow
+                case 65: // A key
+                    moveLeft = false;
+                    break;
+                case 40: // down arrow
+                case 83: // S key
+                    moveBackward = false;
+                    break;
+                case 39: // right arrow
+                case 68: // D key
+                    moveRight = false;
+                    break;
+            }
+        };
+
+        document.addEventListener('keydown', onKeyDown);
+        document.addEventListener('keyup', onKeyUp);
+
+        // Check collision with the grid
+        function checkCollision(position) {
+            var gridSize = 20;
+            var halfGridSize = gridSize / 2;
+            var margin = 0.1;
+
+            if (
+                position.x < -halfGridSize + margin ||
+                position.x > halfGridSize - margin ||
+                position.z < -halfGridSize + margin ||
+                position.z > halfGridSize - margin
+            ) {
+                return true; // Collision detected
+            }
+
+            return false; // No collision
+        }
+
+        // Render loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            updateParticles();
+
+            checkParticleCollision();
+
+            if (controls.isLocked) {
+                var delta = 0.03;
+
+                if (moveForward) {
+                    controls.moveForward(delta);
+                    if (checkCollision(controls.getObject().position)) {
+                        controls.moveForward(-delta); // Move back to the previous position
+                    }
+                }
+
+                if (moveBackward) {
+                    controls.moveForward(-delta);
+                    if (checkCollision(controls.getObject().position)) {
+                        controls.moveForward(delta); // Move back to the previous position
+                    }
+                }
+
+                if (moveLeft) {
+                    controls.moveRight(-delta);
+                    if (checkCollision(controls.getObject().position)) {
+                        controls.moveRight(delta); // Move back to the previous position
+                    }
+                }
+
+                if (moveRight) {
+                    controls.moveRight(delta);
+                    if (checkCollision(controls.getObject().position)) {
+                        controls.moveRight(-delta); // Move back to the previous position
+                    }
+                }
+            }
+
+            updateTriangles()
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        function removeParticle(particle) {
+            scene.remove(particle);
+            particles.splice(particles.indexOf(particle), 1);
+        }
+
+        function createParticle() {
+            playLaserSound();
+            var geometry = new THREE.SphereGeometry(0.05, 16, 16);
+            var material = new THREE.MeshBasicMaterial({ color: 0xADD8E6 });
+            var particle = new THREE.Mesh(geometry, material);
+            particle.position.copy(camera.position);
+            particle.initialDirection = camera.getWorldDirection(new THREE.Vector3());
+            particle.velocity = particle.initialDirection.clone().multiplyScalar(0.25);
+            scene.add(particle);
+            particles.push(particle);
+        }
+
+        function updateParticles() {
+            var distanceThreshold = 20;
+
+            for (var i = particles.length - 1; i >= 0; i--) {
+                var particle = particles[i];
+                particle.position.add(particle.velocity);
+
+                var distance = particle.position.distanceTo(camera.position);
+                if (distance > distanceThreshold) {
+                    removeParticle(particle);
+                }
+            }
+        }
+
+        function onMouseDown(event) {
+            event.preventDefault();
+
+            if (controls.isLocked) {
+                // Particle creation is allowed only when controls are locked
+                if (event.button === 0) {
+                    createParticle();
+                }
+            }
+        }
+
+        function onMouseMove(event) {
+            event.preventDefault();
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+        }
+
+        // Mouse click event listener
+        document.addEventListener('mousedown', onMouseDown);
+        document.addEventListener('mousemove', onMouseMove, false);
+
+        // Declare a variable to count collided particles
+        var collidedParticles = 0;
+
+        var hasCubeMoved = false; // Flag to track if the cube has already been moved
+
+        // Check collision between particles and cubes
+        function checkParticleCollision() {
+            for (var j = 0; j < cubes.length; j++) {
+                var cube = cubes[j];
+                var isColliding = false;
+
+                if (cube.visible) {
+                    for (var i = 0; i < particles.length; i++) {
+                        var particle = particles[i];
+                        var particlePosition = particle.position;
+                        var particleEdge = particlePosition
+                            .clone()
+                            .add(particle.velocity.clone().normalize().multiplyScalar(0.1));
+
+                        raycaster.set(particlePosition, particleEdge.sub(particlePosition).normalize());
+                        var intersects = raycaster.intersectObject(cube);
+
+                        if (intersects.length === 1) {
+                            // Particle collided with the cube
+                            isColliding = true;
+                            break;
+                        }
+                    }
+                }
+
+                // Set cube color and visibility based on collision status
+                if (isColliding) {
+                    // Cube is red during collision
+                    cube.material.color.set(colour);
+                    explosion(cube);
+                    moveCubeRandomly(cube);
+                    hasCubeMoved = false; // Reset the flag when the cube is hidden
+                } else {
+                    // Cube is green when there is no collision
+                    cube.material.color.set(colour);
+
+                    // Check if all particles have been removed and the cube has not moved
+                    if (collidedParticles === particles.length && !hasCubeMoved) {
+                        collidedParticles = 0; // Reset the collided particles counter
+                        hasCubeMoved = true; // Set the flag to indicate that the cube has been moved
+                    }
+                }
+            }
+        }
+
+        // Move the cube to a random location on the grid
+        function moveCubeRandomly(cube) {
+            var gridSize = 20; // Adjust the grid size as desired
+            var randomX = Math.floor(Math.random() * gridSize) - gridSize / 2;
+            var randomZ = Math.floor(Math.random() * gridSize) - gridSize / 2;
+
+            cube.position.x = randomX;
+            cube.position.z = randomZ;
+        }
+
+
+        // Create an explosion of small triangles
+        function explosion(cube) {
+
+            playExplosionSound();
+
+            var explosionCount = 50;
+
+            for (var i = 0; i < explosionCount; i++) {
+                var triangle = createTriangle(cube);
+                scene.add(triangle);
+                triangles.push(triangle); // Add the triangle to the triangles array
+
+                triangle.userData = {
+                    direction: new THREE.Vector3(
+                        Math.random() * 2 - 1,
+                        Math.random() * 2 - 1,
+                        Math.random() * 2 - 1
+                    ).normalize(),
+                    speed: Math.random() * 0.05 + 0.01, // Random speed
+                    rotationAxis: new THREE.Vector3(
+                        Math.random(),
+                        Math.random(),
+                        Math.random()
+                    ).normalize(),
+                    rotationSpeed: Math.random() * 0.1 + 0.005, // Random rotation speed
+                    distance: 0, // Distance traveled by the triangle
+                    remove: false, // Flag to mark if the triangle should be removed
+                    parentCube: cube, // Reference to the collided cube
+                };
+            }
+        }
+
+
+        // Create a small triangle
+        function createTriangle(cube) {
+            var geometry = new THREE.BufferGeometry();
+            var vertices = new Float32Array([
+                -0.1, 0, 0,
+                0.1, 0, 0,
+                0, 0.1, 0
+            ]);
+            var indices = new Uint16Array([0, 1, 2]);
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+            geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+
+            var material = new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide });
+
+            var triangle = new THREE.Mesh(geometry, material);
+
+            // Set initial position at the center of the collided cube
+            triangle.position.copy(cube.position);
+
+            // Set the rotation to face the camera
+            triangle.lookAt(camera.position);
+
+            // Set random scale
+            var scale = Math.random() * 1 + 0.5; // Adjust the scale range as desired
+            triangle.scale.set(scale, scale, scale);
+
+            return triangle;
+        }
+
+
+        // Update the triangles' positions, rotations, and remove them if necessary
+        function updateTriangles() {
+            for (var i = 0; i < triangles.length; i++) {
+                var triangle = triangles[i];
+                var userData = triangle.userData;
+
+                // Move the triangle in its direction at a random speed
+                var speed = userData.speed;
+                triangle.position.add(userData.direction.clone().multiplyScalar(speed));
+
+                // Rotate the triangle around its rotation axis at a random speed
+                var rotationSpeed = userData.rotationSpeed;
+                triangle.rotateOnWorldAxis(userData.rotationAxis, rotationSpeed);
+
+                // Update the distance traveled by the triangle
+                userData.distance += speed;
+
+                // If the triangle has traveled a certain distance, mark it for removal
+                if (userData.distance >= 2) {
+                    userData.remove = true;
+                }
+            }
+
+            // Remove triangles that are marked for removal
+            for (var i = triangles.length - 1; i >= 0; i--) {
+                if (triangles[i].userData.remove) {
+                    scene.remove(triangles[i]);
+                    triangles.splice(i, 1);
+                }
+            }
+
+
+            // Resize renderer when window size changes
+            window.addEventListener('resize', function () {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+
+        }
+
+
+        // Create an AudioContext
+        var audioContext = null;
+        var musicBuffer = null;
+        var laserSoundBuffer = null;
+        var explosionSoundBuffer = null;
+        var isMusicPlaying = false;
+        var musicSource = null;
+
+        // Function to load audio files
+        function loadAudioFile(url, callback) {
+            var request = new XMLHttpRequest();
+            request.open('GET', url, true);
+            request.responseType = 'arraybuffer';
+
+            request.onload = function () {
+                audioContext.decodeAudioData(request.response, function (buffer) {
+                    callback(buffer);
+                });
+            };
+
+            request.send();
+        }
+
+        // Function to play the music
+        function playMusic() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            if (!musicBuffer) {
+                loadAudioFile('https://www.shanebrumback.com/sounds/first-person-shooter-music.wav', function (buffer) {
+                    musicBuffer = buffer;
+                    playLoopedSound(buffer, .35);
+                    isMusicPlaying = true;
+                });
+            } else {
+                if (isMusicPlaying) {
+                    pauseSound();
+                    isMusicPlaying = false;
+                } else {
+                    resumeSound();
+                    isMusicPlaying = true;
+                }
+            }
+        }
+
+        // Function to play a sound in a loop with a specific volume
+        function playLoopedSound(buffer, volume) {
+            musicSource = audioContext.createBufferSource();
+            musicSource.buffer = buffer;
+            musicSource.loop = true; // Enable looping
+            var gainNode = audioContext.createGain();
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime); // Set initial volume to 0
+            gainNode.gain.linearRampToValueAtTime(volume, audioContext.currentTime + 2); // Gradually increase volume to desired level (adjust time as needed)
+            musicSource.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            // Delay the start of the audio source
+            musicSource.start(audioContext.currentTime + 0.1); // Adjust the delay as needed
+
+            // Note: You can adjust the delay time and volume ramping to find the appropriate values that work best for your audio files.
+        }
+
+        // Function to pause the music
+        function pauseSound() {
+            if (musicSource) {
+                musicSource.stop();
+                musicSource.disconnect();
+                musicSource = null;
+            }
+        }
+
+        // Function to resume the music
+        function resumeSound() {
+            if (musicBuffer) {
+                playLoopedSound(musicBuffer, .35);
+            }
+        }
+
+        // Function to play the laser sound
+        function playLaserSound() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            if (!laserSoundBuffer) {
+                loadAudioFile('./Shotgun_Blast-Jim_Rogers-1914772763.wav', function (buffer) {
+                    laserSoundBuffer = buffer;
+                    playSound(buffer, 1);
+                });
+            } else {
+                playSound(laserSoundBuffer, 1);
+            }
+        }
+
+        // Function to play the explosion sound
+        function playExplosionSound() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            if (!explosionSoundBuffer) {
+                loadAudioFile('https://www.shanebrumback.com/sounds/explosion.wav', function (buffer) {
+                    explosionSoundBuffer = buffer;
+                    playSound(buffer, 0.25); // Adjust the volume here (0.5 = 50% volume)
+                });
+            } else {
+                playSound(explosionSoundBuffer, 0.25); // Adjust the volume here (0.5 = 50% volume)
+            }
+        }
+
+        // Function to play a sound with a specific volume
+        function playSound(buffer, volume) {
+            var source = audioContext.createBufferSource();
+            var gainNode = audioContext.createGain();
+            gainNode.gain.value = volume;
+
+            source.buffer = buffer;
+            source.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            source.start(0);
+        }
+
+
+        // Event listener for key press
+        document.addEventListener('keydown', function (event) {
+
+            if (event.key === 'm' || event.key === 'M') {
+                playMusic();
+            } else if (event.key === ' ') {
+                if (controls.isLocked) {
+                    event.preventDefault(); // Prevent default action of spacebar
+                    createParticle();
+                    playLaserSound();
+                }
+            } else if (event.key === 'e' || event.key === 'E') {
+                playExplosionSound();
+            }
+
+        });
+
+
+    </script>
+
+</body>
+</html>
